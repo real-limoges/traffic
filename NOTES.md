@@ -57,3 +57,27 @@ from a real one to Phase 2 — the exact failure mode the artifact contract
 exists to prevent. Synthetic data lives only under `tests/fixtures/` and is
 generated on the fly by tests, never committed under `data/` or
 `artifacts/`.
+
+## 2026-07-02 — Calibration design: three estimates, three flagged fallbacks
+Free-flow speed from low-occupancy night medians (not the speed limit —
+sensors drift), practical capacity from p99 of sustained 15-min rates
+(HCM-style; hourly averages smear peaks, single 5-min spikes lie), BPR
+alpha/beta by exact log-space linearization fit only on genuinely
+congested points, with an acceptance box. Every fallback is a flag on the
+edge, never a silent substitution — Phase 2 must be able to weight edges
+by how much of their VDF is measurement vs default. The known bias worth
+remembering: on segments that never saturate, the capacity estimator
+measures peak demand instead, so v/c runs hot there. Documented in
+SCHEMA.md rather than "fixed" with a fudge factor.
+
+## 2026-07-02 — Test what can be tested: plant ground truth, recover it
+With no real data available, the honest verification target is the
+mechanics: the fixture generator writes format-faithful PeMS files from a
+KNOWN BPR curve (ffs 65, cap 2000 vphpl, alpha 0.3, beta 3) plus every
+defect class the quality rules claim to handle. The suite recovered ffs
+within 3 mph, capacity within 15%, beta within 1.0, confirmed each rule
+fired (PeMS-imputed exclusion, implausible speeds, dead day dropped, thin
+station defaulted, 2-interval gap imputed, 10-interval gap left missing),
+and confirmed byte-identical artifacts across re-runs. First run caught a
+real test-design bug: the "thin" station was planted at a chain terminus,
+where it measures no edge — moved mid-chain.
