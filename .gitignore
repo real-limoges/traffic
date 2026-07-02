@@ -1,1 +1,10 @@
 .DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+# Raw and processed data are pinned in PROVENANCE.md, not committed
+# (multi-GB PeMS pulls); README.md and SHA256SUMS are the committed record.
+data/raw/*
+!data/raw/README.md
+!data/raw/SHA256SUMS
+data/processed/*
