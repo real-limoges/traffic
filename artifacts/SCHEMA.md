@@ -76,7 +76,7 @@ station totals (all lanes), never per-lane, unless the field name says
 | `observed.flow_vph_{p5,p50,p95}` | float | Percentiles of observed hourly-scaled flow (all valid 5-min intervals × 12) | Includes nights/weekends; not peak-only |
 | `observed.flow_vph_{am,pm}_peak` | float | Weekday 7–9h / 16–18h mean flows | Phase 2's equilibrium sanity check material |
 | `observed.n_days` | int | Days of valid data behind the calibration | |
-| `observed.coverage` | float | Fraction of 5-min intervals valid after quality rules | |
+| `observed.coverage` | float | Fraction of 5-min grid intervals valid, computed over RETAINED station-days only (dead days and days absent from the pull are excluded from the denominator; imputed intervals count as valid) | Overstates coverage for stations that lost whole days — cross-check `n_days` against the pull length |
 | `observed.bpr_n_points` | int | Congested 15-min points behind the alpha/beta fit | Small values mean the fit is weak even if `fitted` |
 | `flags` | str[] | See flag table below | |
 
@@ -86,9 +86,10 @@ station totals (all lanes), never per-lane, unless the field name says
 |---|---|
 | `long_gap` | Consecutive detectors > 5 mi apart (`config.MAX_SEGMENT_GAP_MI`); the edge exists but its calibration extrapolates across a detector desert |
 | `connectivity_assumed` | Connector inferred from geometry crossing, not from ramp data; the movement may not physically exist |
-| `default_vdf` / `default_ffs` / `default_capacity` / `default_bpr` | The named quantity fell back to configured defaults instead of being estimated from data |
+| `default_ffs` / `default_capacity` / `default_bpr` | The named quantity fell back to configured defaults instead of being estimated from data |
+| `default_vdf` | The ENTIRE VDF is defaults (all three of the above, or a connector, or `no_readings`). `meta.counts.edges_default_vdf` counts exactly these edges |
 | `thin_data` | Measurement station had < `MIN_CALIBRATION_DAYS` (10) valid days; ALL its estimates are defaults |
-| `no_readings` | Station present in metadata but produced zero readings in the pull |
+| `no_readings` | Station present in metadata but produced no calibratable readings — zero rows in the pull, or every row removed by the quality rules |
 
 ## Cleaning and calibration decisions
 
@@ -175,7 +176,8 @@ Every decision names the exact code. Constants live in
 - **Where in the code:**
   `pipeline/stages/ingest_topology.py: run(), _cluster()`;
   `pipeline/stages/build_graph.py: run()` (connector block);
-  `config.INTERCHANGE_SNAP_MI, CONNECTOR_*`.
+  `config.INTERCHANGE_SNAP_MI, SNAP_SLACK, CROSSING_CLUSTER_MI,
+  CONNECTOR_*` (anchor radius = INTERCHANGE_SNAP_MI × SNAP_SLACK = 3 mi).
 - **What would change:** A real ramp inventory (e.g. PeMS `FF` detectors
   or OpenStreetMap ramps) could replace assumed movements; that is a new
   ingest stage, not a rewrite — connectors are isolated in one block and
@@ -217,7 +219,10 @@ Every decision names the exact code. Constants live in
 - **Known bias, stated plainly:** on segments that never saturate during
   the pull, p99 measures peak *demand*, not capacity — capacity is then
   underestimated and v/c overestimated. Fixture tests show ~±10% recovery
-  when the segment does reach saturation.
+  when the segment does reach saturation. Windows are positional over the
+  valid grid (a handful per discontinuity straddle day boundaries) and
+  window speed is an arithmetic mean of 5-min speeds — both negligible at
+  p99 but stated for completeness.
 - **What would change:** A fundamental-diagram fit (flow vs occupancy
   breakpoint) is the principled upgrade; it slots into `_capacity()`.
 
@@ -231,13 +236,20 @@ Every decision names the exact code. Constants live in
   absurd exponents.
 - **Where in the code:** `pipeline/stages/calibrate.py: _bpr_fit()`;
   `config.BPR_*`.
+- **Known bias, stated plainly:** any capacity error propagates into
+  alpha roughly as `cap_err^beta` (fixture: capacity +10% high → alpha
+  ≈ +30% high at beta 3, while beta itself stays accurate). The two
+  errors compensate: t(v) remains accurate at observed flows, which is
+  what equilibrium assignment consumes — but do not read `alpha` in
+  isolation as a physical constant.
 - **What would change:** Robust regression (Huber) or per-corridor
   pooling for thin segments; both are local to `_bpr_fit()`.
 
 ### Determinism
 - **What was decided:** No randomness anywhere; sorted groupbys and
-  iteration; artifact JSON key-sorted, floats rounded (coords 6 dp, rest
-  4 dp). Byte-identical re-runs are a test
+  iteration; artifact JSON key-sorted, floats rounded (coords 6 dp,
+  postmiles and lengths 3 dp, VDF/observed values 4 dp). Byte-identical
+  re-runs of all eight stages are a test
   (`tests/test_pipeline.py: test_determinism`).
 - **Where in the code:** `pipeline/stages/emit.py`; `config.ARTIFACT_*`.
 

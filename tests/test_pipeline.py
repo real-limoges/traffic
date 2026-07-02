@@ -71,12 +71,13 @@ def test_quality_rules_fired(pipeline_run):
     report = json.loads((pipeline_run["proc"] / "quality_report.json").read_text())
     assert report["invalid_by_reason"].get("pems_imputed", 0) > 0
     assert report["invalid_by_reason"].get("implausible", 0) > 0
-    assert report["dead_station_days"] >= 1
+    assert report["dead_station_days"] >= 2
     assert THIN_STATION in report["thin_stations_lt_min_days"]
 
     clean = pd.read_parquet(pipeline_run["proc"] / "readings_clean.parquet")
     dead = clean[clean["station_id"] == DEAD_DAY_STATION]
-    assert dead["timestamp"].dt.date.nunique() == 11, "dead day not dropped"
+    # Day 3 (all nulls) and day 5 (only 20 rows present) both dropped.
+    assert dead["timestamp"].dt.date.nunique() == 10, "dead days not dropped"
 
 
 def test_imputation_short_gaps_only(pipeline_run):
@@ -131,6 +132,9 @@ def test_calibration_recovers_ground_truth(pipeline_run):
         cap_pl = e["vdf"]["capacity_vph"] / e["lanes"]
         assert abs(cap_pl - TRUTH["capacity_vphpl"]) / TRUTH["capacity_vphpl"] < 0.15
         assert abs(e["vdf"]["beta"] - TRUTH["beta"]) < 1.0
+        # Alpha tolerance is deliberately wide: capacity error propagates
+        # into alpha as ~cap_err^beta (documented in SCHEMA.md, "BPR fit");
+        # the compensation keeps t(v) accurate at observed flows.
         assert 0.5 * TRUTH["alpha"] < e["vdf"]["alpha"] < 2.0 * TRUTH["alpha"]
         # Observed flow ranges present and ordered.
         assert obs["flow_vph_p5"] <= obs["flow_vph_p50"] <= obs["flow_vph_p95"]
@@ -148,6 +152,10 @@ def test_fallbacks_are_flagged(pipeline_run):
     for e in thin_edges:
         assert "thin_data" in e["flags"]
         assert e["vdf"]["fit_method"] == "default"
+        assert "default_vdf" in e["flags"], "fully-default edge must say so"
+    # The headline honesty counter must equal the per-edge flags exactly.
+    n_flagged = sum(1 for e in art["edges"] if "default_vdf" in e["flags"])
+    assert art["meta"]["counts"]["edges_default_vdf"] == n_flagged
 
 
 def test_artifact_units_and_consistency(pipeline_run):
@@ -166,7 +174,8 @@ def test_artifact_units_and_consistency(pipeline_run):
 
 def test_determinism(pipeline_run):
     first = (pipeline_run["art"] / "network_graph.json").read_bytes()
-    for stage in (quality_filter, impute, build_graph, calibrate, emit):
+    for stage in (ingest_metadata, ingest_readings, quality_filter, impute,
+                  ingest_topology, build_graph, calibrate, emit):
         stage.run()
     second = (pipeline_run["art"] / "network_graph.json").read_bytes()
     assert first == second, "artifact must be byte-identical on re-run"

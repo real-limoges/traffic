@@ -81,3 +81,33 @@ station defaulted, 2-interval gap imputed, 10-interval gap left missing),
 and confirmed byte-identical artifacts across re-runs. First run caught a
 real test-design bug: the "thin" station was planted at a chain terminus,
 where it measures no edge — moved mid-chain.
+
+## 2026-07-02 — Deviation from the brief's tree: three readings files, not one
+The brief's artifact contract sketches `data/processed/detector_readings.parquet`;
+the pipeline instead writes `readings_raw` / `readings_clean` /
+`readings_final.parquet` — one file per stage boundary, so each quality and
+imputation decision has an inspectable before/after. Deliberate deviation,
+noted here rather than silently made.
+
+## 2026-07-02 — Fresh-context audit round 1: 1 major, 7 minor, 5 nits
+A fresh-context subagent audited the repo against the brief (it also
+independently verified determinism across separate processes with
+different hash seeds, and confirmed BPR math/units clean and scope
+discipline intact). The real catch: `meta.counts.edges_default_vdf`
+undercounted fully-default edges — thin-data mainline edges whose entire
+VDF is defaults weren't counted or flagged, which would have made the
+artifact's headline honesty signal read systematically low on real data,
+where thin stations are the dominant default class. Fixed by flagging
+`default_vdf` whenever all three estimates are defaults. Also fixed from
+the audit: Rule D now measures against the full 288-interval day (a day
+with 20 present-and-valid rows is 93% silent, not 100% valid) with an
+absent-rows fixture case added; the quality report tallies reasons before
+dead-day removal so no exclusion loses its reason; metadata selection
+enforces "dated at or before range end" instead of silently taking the
+latest; SNAP_SLACK/CROSSING_CLUSTER_MI moved into config.py where the
+docs said all thresholds live; the determinism test re-runs all eight
+stages; SCHEMA.md now states the alpha-capacity error coupling
+(cap_err^beta), actual coverage semantics, actual rounding, and the
+broadened `no_readings` meaning. Lesson: the self-reporting fields of an
+artifact need the same adversarial scrutiny as the estimates — an honest
+graph with a dishonest honesty-counter is still dishonest.

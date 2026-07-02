@@ -93,6 +93,9 @@ def write_fixture(raw_dir: Path) -> None:
             if sid == THIN_STATION and dnum >= 2:
                 continue  # thin station: only 2 days present
             for k in range(288):
+                if sid == DEAD_DAY_STATION and dnum == 5 and k >= 20:
+                    continue  # sparse day: rows simply absent (Rule D via
+                              # missing intervals, not nulls)
                 ts = f"{day.month:02d}/{day.day:02d}/{day.year} {k // 12:02d}:{(k % 12) * 5:02d}:00"
                 vc = _vc_profile(k) * float(rng.normal(1.0, 0.03))
                 vc = max(vc, 0.01)

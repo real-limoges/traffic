@@ -83,6 +83,9 @@ def run() -> None:
                     flags.append("default_bpr")
                 if bool(c["thin_station"]):
                     flags.append("thin_data")
+                if {"default_ffs", "default_capacity", "default_bpr"} <= set(flags):
+                    flags.append("default_vdf")
+                    n_default_vdf += 1
                 vdf = {
                     "t0_sec": _r(e["length_mi"] / c["ffs_mph"] * 3600),
                     "capacity_vph": _r(c["capacity_vphpl"] * e["lanes"]),

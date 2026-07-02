@@ -55,8 +55,22 @@ def meta_file(pull_dir: Path) -> Path:
             f"No d04_text_meta_*.txt in {pull_dir}. The station metadata "
             "file is required; see data/raw/README.md."
         )
-    # Latest metadata at or nearest the range end is the pinned list.
-    return metas[-1]
+    # The pinned station list is the latest metadata dated AT OR BEFORE the
+    # pull range's end (data/raw/README.md). File names sort by date
+    # (d04_text_meta_YYYY_MM_DD.txt), so string comparison suffices.
+    m = PEMS_DIR_RE.match(pull_dir.name)
+    end = m.group(2)  # YYYYMMDD
+    in_range = [
+        f for f in metas
+        if f.stem.removeprefix("d04_text_meta_").replace("_", "") <= end
+    ]
+    if not in_range:
+        raise FileNotFoundError(
+            f"All metadata files in {pull_dir} are dated after the range "
+            f"end {end}; download the metadata file at or before the end "
+            "of the range (see data/raw/README.md)."
+        )
+    return in_range[-1]
 
 
 def station_5min_files(pull_dir: Path) -> list[Path]:

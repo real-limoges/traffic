@@ -87,6 +87,14 @@ MAX_SEGMENT_GAP_MI = 5.0
 # pass within this distance (degrees would be wrong; we buffer in miles
 # via a local approximation inside the stage).
 INTERCHANGE_SNAP_MI = 1.0
+# The nearest-station anchor for a crossing may be up to
+# INTERCHANGE_SNAP_MI * SNAP_SLACK away (detector spacing exceeds the
+# snap radius in places); beyond that the crossing goes unanchored and is
+# reported in diagnostics.
+SNAP_SLACK = 3.0
+# Representative intersection points closer than this collapse into one
+# crossing (parallel carriageways and concurrencies produce point sprays).
+CROSSING_CLUSTER_MI = 2.0
 # Default VDF for freeway-to-freeway connector edges (no detector data):
 CONNECTOR_SPEED_MPH = 40.0
 CONNECTOR_LENGTH_MI = 0.5

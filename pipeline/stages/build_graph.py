@@ -32,7 +32,6 @@ import pandas as pd
 from .. import config, paths
 
 MI_PER_DEG_LAT = 69.0
-SNAP_SLACK = 3.0  # nearest-station anchor may be this x snap radius away
 
 INCREASING_DIRS = ("N", "E")
 DECREASING_DIRS = ("S", "W")
@@ -124,7 +123,7 @@ def run() -> None:
                     axis=1,
                 )
                 j = int(d.idxmin())
-                if d[j] <= config.INTERCHANGE_SNAP_MI * SNAP_SLACK:
+                if d[j] <= config.INTERCHANGE_SNAP_MI * config.SNAP_SLACK:
                     anchors[(fwy, direction)] = (
                         f"S{int(chain.iloc[j].station_id)}",
                         float(d[j]),

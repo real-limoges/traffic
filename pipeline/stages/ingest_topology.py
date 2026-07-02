@@ -13,7 +13,7 @@ intersection of the two routes' merged geometries. Intersections can be
 points (a genuine crossing), line segments (route concurrencies, e.g. the
 I-80/I-580 co-alignment in the East Bay — represented by their endpoints),
 or clusters of near-duplicate points where carriageway lines cross
-repeatedly. Representative points are clustered within CLUSTER_MI and
+repeatedly. Representative points are clustered within config.CROSSING_CLUSTER_MI and
 each cluster becomes one crossing, positioned at the cluster centroid.
 Deterministic: points sorted before greedy clustering.
 """
@@ -27,7 +27,6 @@ from shapely.ops import unary_union
 from .. import config, paths
 
 ROUTE_PROP_CANDIDATES = ("Route", "ROUTE", "route", "RTE", "RteNum", "ROUTE_ID")
-CLUSTER_MI = 2.0
 MI_PER_DEG_LAT = 69.0
 
 
@@ -76,7 +75,7 @@ def _cluster(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
     clusters: list[list[tuple[float, float]]] = []
     for p in pts:
         for cl in clusters:
-            if any(_dist_mi(p, q) <= CLUSTER_MI for q in cl):
+            if any(_dist_mi(p, q) <= config.CROSSING_CLUSTER_MI for q in cl):
                 cl.append(p)
                 break
         else:

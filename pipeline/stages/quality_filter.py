@@ -67,8 +67,18 @@ def run() -> None:
     df["invalid_reason"] = reason
     df["date"] = df["timestamp"].dt.date
 
-    # Rule D — drop whole dead station-days.
-    day_valid = df.groupby(["station_id", "date"])["valid"].mean()
+    # Reason tally BEFORE dead-day removal, so every exclusion is counted
+    # under its reason and dead-day rows aren't lost from the breakdown.
+    invalid_by_reason = {
+        k: int(v)
+        for k, v in df["invalid_reason"].value_counts().items()
+        if k
+    }
+
+    # Rule D — drop whole dead station-days. Denominator is the full
+    # 288-interval day, not just rows PeMS happened to emit: a day the
+    # detector reported 20 intervals is 93% silent, not 100% valid.
+    day_valid = df.groupby(["station_id", "date"])["valid"].sum() / 288.0
     dead = day_valid[day_valid < config.MIN_VALID_FRACTION_PER_DAY]
     dead_index = pd.MultiIndex.from_frame(dead.reset_index()[["station_id", "date"]])
     row_key = pd.MultiIndex.from_frame(df[["station_id", "date"]])
@@ -92,11 +102,7 @@ def run() -> None:
     report = {
         "rows_in": n_total,
         "rows_out": len(df),
-        "invalid_by_reason": {
-            k: int(v)
-            for k, v in df["invalid_reason"].value_counts().items()
-            if k
-        },
+        "invalid_by_reason": invalid_by_reason,
         "dead_station_day_rows_dropped": n_dead_day_rows,
         "dead_station_days": int(len(dead)),
         "thin_stations_lt_min_days": thin,
