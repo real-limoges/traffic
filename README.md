@@ -1,5 +1,10 @@
 # Research Pipeline Template
 
+> **This repo is an instantiated project (Bay Area Braess's paradox), not a
+> blank template.** If you're here to finish the data pull, go straight to
+> [`NEXT_STEPS.md`](NEXT_STEPS.md). The rest of this file documents the
+> template pattern the project was built from.
+
 A reusable scaffold for "Fable does the unbounded data engineering, Opus does
 the bounded analysis" projects. Two live instances of this pattern already
 exist — the wildfire self-organized-criticality project and the Bay Area

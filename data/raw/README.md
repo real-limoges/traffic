@@ -49,5 +49,9 @@ feature works; the pipeline filters to the scoped Bay Area routes itself.
 
 ## After placing files
 
-1. Fill in the pull dates / identifiers in `/PROVENANCE.md`.
-2. Run `make artifacts`.
+1. Run `make pin-raw` to record checksums (writes `SHA256SUMS` here).
+2. Fill in the pull dates / identifiers / checksums in `/PROVENANCE.md`.
+3. Run `make artifacts`.
+
+For the full end-to-end workflow (local setup, what to commit, and the
+post-run sanity checks), see [`/NEXT_STEPS.md`](../../NEXT_STEPS.md).
